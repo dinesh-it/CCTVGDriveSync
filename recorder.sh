@@ -1,6 +1,7 @@
 tmp_dir="/tmp/cctv"
-dest="/opt/cam_proj/video/"
-rec_time=600
+dest="/opt/cam_proj/video"
+rec_time=900
+rtsp="rtsp://username:password@192.168.0.102:554/stream1"
 echo "Starting CCTV record script"
 mkdir -p $tmp_dir
 
@@ -13,24 +14,15 @@ get_last_mtime() {
 }
 
 record_video() {
-
-	file=$(date +'%Y-%m-%d_%H:%M:%S.mkv');
-	date=$(date +'%Y-%m-%d');
-	t="$dest$date";
-	mkdir -p $t;
-
 	# Run ffmpeg if its not running before
 	/usr/bin/flock -n /tmp/recorder.lock -c \
-		"echo 'New file: $tmp_dir/$file';
-		/usr/bin/ffmpeg -hide_banner -y -loglevel error -rtsp_transport tcp \
-		-i 'rtsp://username:password@192.168.0.102:554/stream1' \
-		-vcodec copy -c:a copy \
-		-f segment -ss 0 -t $rec_time -segment_time $rec_time \
-		-strftime 1 \
-		$tmp_dir/$file" \
-		&& echo "Copying file to $t" \
-		&& mv $tmp_dir/$file $t \
-		&& record_video
+		"/usr/bin/ffmpeg -hide_banner -y \
+		-loglevel error -rtsp_transport tcp \
+		-use_wallclock_as_timestamps 1 -i $rtsp \
+		-vcodec copy -acodec copy \
+		-f segment -reset_timestamps 1 \
+		-segment_time $rec_time -segment_format mkv \
+		-segment_atclocktime 1 -strftime 1 $tmp_dir/%Y-%m-%d_%H:%M:%S.mkv"
 }
 
 if compgen -G "$tmp_dir/*.mkv" > /dev/null; then
@@ -51,7 +43,7 @@ pkill -f 'ffmpeg'
 while [ 1 ]
 do
 	record_video &
-	/opt/cam_proj/sync_videos.sh &
+
 	sleep 5
 
 	if compgen -G "$tmp_dir/*.mkv" > /dev/null; then
@@ -62,7 +54,11 @@ do
 			rm /tmp/recorder.lock
 	    		exit 1
     		fi
+
+		date=$(date +'%Y-%m-%d');
+		out_path="$dest/$date/"
+		mkdir -p $out_path
+		find /tmp/cctv/ -type f -not -newermt '-10 seconds' -exec mv '{}' $out_path \;
 	fi
 done
-
 
