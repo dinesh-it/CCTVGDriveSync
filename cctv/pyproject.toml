@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "cctv"
+version = "0.1.0"
+description = ""
+authors = ["Dinesh <dinesh@exceleron.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+opencv-python = "^4.11.0.86"
+numpy = "^2.2.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
