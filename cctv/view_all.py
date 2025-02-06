@@ -49,6 +49,7 @@ def capture_stream(index, url):
     """Capture frames from an RTSP stream."""
     global frames, running
     cap = cv2.VideoCapture(url)
+    cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000)
     if not cap.isOpened():
         print(f"Error opening stream {index + 1}")
         return
@@ -68,14 +69,26 @@ def capture_stream(index, url):
             black_frame = add_border(black_frame, BORDER_SIZE, BORDER_COLOR)
             with locks[index]:
                 frames[index] = black_frame
+            break
         time.sleep(0.03)  # Reduce CPU usage
 
     cap.release()
 
+
+def restart_thread(index, url):
+    """Function to restart the thread if it stops."""
+    while True:
+        thread = threading.Thread(target=capture_stream, args=(index, url))
+        thread.start()
+        thread.join()  # Wait for the thread to finish before restarting
+        print(f"Restarting thread {index} for {url}")
+        time.sleep(0.50)
+
+
 # Start a thread for each stream
 threads = []
 for i, url in enumerate(rtsp_urls):
-    thread = threading.Thread(target=capture_stream, args=(i, url))
+    thread = threading.Thread(target=restart_thread, args=(i, url))
     thread.start()
     threads.append(thread)
 
@@ -83,6 +96,15 @@ for i, url in enumerate(rtsp_urls):
 window_name = "CCTV Monitoring - 4 Channels"
 cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
 cv2.resizeWindow(window_name, 1280, 720)
+
+
+# Init with black frames
+black_frame = np.zeros((TARGET_HEIGHT, TARGET_WIDTH, 3), dtype=np.uint8)
+black_frame = add_border(black_frame, BORDER_SIZE, BORDER_COLOR)
+frames[0] = black_frame
+frames[1] = black_frame
+frames[2] = black_frame
+frames[3] = black_frame
 
 try:
     while True:
