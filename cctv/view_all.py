@@ -11,8 +11,6 @@ rtsp_urls = [
     "rtsp://dd-garage:<password>@192.168.0.104/stream2",
 ]
 
-#    "rtsp://koki-front-door:<password>@192.168.0.105/stream2"
-
 # Set target dimensions for each quadrant (width, height)
 TARGET_WIDTH = 640  # Half of 1280 window width
 TARGET_HEIGHT = 360  # Half of 720 window height
@@ -56,10 +54,11 @@ def capture_stream(index, url):
 
     while running:
         ret, frame = cap.read()
+        cap.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
         if ret:
             frame = cv2.resize(frame, (TARGET_WIDTH, TARGET_HEIGHT))
-            #if index == 5:  # Rotate the first stream
-            #    frame = rotate_frame(frame, angle=90)
+            #if index == 0:  # Rotate the first stream
+            #    frame = rotate_frame(frame, angle=180)
             frame = add_border(frame, BORDER_SIZE, BORDER_COLOR)
             with locks[index]:
                 frames[index] = frame
@@ -77,12 +76,14 @@ def capture_stream(index, url):
 
 def restart_thread(index, url):
     """Function to restart the thread if it stops."""
-    while True:
+    while running:
         thread = threading.Thread(target=capture_stream, args=(index, url))
         thread.start()
         thread.join()  # Wait for the thread to finish before restarting
-        print(f"Restarting thread {index} for {url}")
-        time.sleep(0.50)
+
+        if running:
+            print(f"Restarting thread {index} for {url}")
+            time.sleep(0.50)
 
 
 # Start a thread for each stream
